@@ -50,7 +50,7 @@ if __name__ == "__main__":
             print("Driver installed")
 
             if args.start:
-                print("Trying to start using SC")
+                input("Ready to start. Press Enter to start the driver")
                 print(remote_subprocess.check_output(
                     "sc start {}".format(KERNEL_SERVICE_NAME)).decode('utf-8'))
 
@@ -60,9 +60,4 @@ if __name__ == "__main__":
 
 
 
-
-    
-
-import subprocess
-subprocess.check_output
 

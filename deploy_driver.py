@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 from os import path
 
 import rpyc
@@ -16,10 +17,6 @@ def parse_arguments(args=None):
     parser = argparse.ArgumentParser(description="Connect to testing VM for deployment and testing of the Driver")
 
     parser.add_argument('host', help="IP of the target computer")
-    parser.add_argument('-i', '--install', action="store_true", default=False,
-                        help="Install the driver as a service")
-    parser.add_argument('-s', '--start', action="store_true", default=False,
-                        help="Start the driver as a service")
     
     parser.add_argument('-p', '--port', type=int, default=DEFAULT_SERVER_PORT,
                         help="Listening port on the target computer")
@@ -28,6 +25,28 @@ def parse_arguments(args=None):
                         help="Use the Release version of the driver instead of the debug")
 
     return parser.parse_args(args)
+
+def install_driver_on_input(connection, driver_name, bin_path):
+    input("Trying to install using SC. Press Enter to start the driver")
+    print(connection.modules.subprocess.check_output(
+        "sc create {} type= kernel binPath= {}".format(driver_name, bin_path)).decode('utf-8'))
+    print("Driver installed")
+
+def start_driver_on_input(connection, driver_name):
+    input("Ready to start. Press Enter to start the driver")
+    print(connection.modules.subprocess.check_output(
+            "sc start {}".format(driver_name)).decode('utf-8'))
+
+def stop_driver_on_input(connection, driver_name):
+    input("Stopping using SC. Press Enter to stop the driver")
+    print(connection.modules.subprocess.check_output(
+        "sc stop {}".format(driver_name)).decode('utf-8'))
+
+
+def uninstall_driver_on_input(connection, driver_name):
+    input("Ready to uninstall. Press Enter to uninstall the driver and delete the service")
+    print(connection.modules.subprocess.check_output(
+        "sc delete {}".format(driver_name)).decode('utf-8'))
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -39,24 +58,27 @@ if __name__ == "__main__":
     rpyc.utils.classic.upload(connection, driver_file, dest_driver_path)
     print("Upload {} to {}".format(DRIVER_FILE_TO_UPLOAD, dest_driver_path))
 
-    if args.install:
-        import subprocess # used for exception testing
-        remote_subprocess = connection.modules.subprocess
-
+    
+    command = input("What should we do? ")
+    while command.lower() not in ['q', 'quit', 'exit']:
         try:
-            print("Trying to install using SC")
-            print(remote_subprocess.check_output(
-                "sc create {} type= kernel binPath= {}".format(KERNEL_SERVICE_NAME, dest_driver_path)).decode('utf-8'))
-            print("Driver installed")
-
-            if args.start:
-                input("Ready to start. Press Enter to start the driver")
-                print(remote_subprocess.check_output(
-                    "sc start {}".format(KERNEL_SERVICE_NAME)).decode('utf-8'))
-
+            if command.lower() in ['i', 'install']:
+                install_driver_on_input(connection, KERNEL_SERVICE_NAME, dest_driver_path)
+            elif command.lower() in ['start', 's']:
+                start_driver_on_input(connection, KERNEL_SERVICE_NAME)
+            elif command.lower() == 'stop':
+                stop_driver_on_input(connection, KERNEL_SERVICE_NAME)
+            elif command.lower() in ['u', 'uninstall']:
+                uninstall_driver_on_input(connection, KERNEL_SERVICE_NAME)
+            else:
+                print("unknown command")
+        
         except subprocess.CalledProcessError as e:
             print("Command {} failed with the following output:\n{}".format(e.cmd, e.output.decode('utf-8')))
-        
+
+        command = input("What do you want to do now? ")
+    
+    print("Exiting")
 
 
 
